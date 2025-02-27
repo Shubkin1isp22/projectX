@@ -3,8 +3,6 @@ from telebot import types
 from datetime import datetime, date, timedelta
 
 
-
-
 class Event:
     """Класс, представляющий мероприятие"""
     def __init__(self, event_id, event_name, event_time, event_date:str, event_organizer):
@@ -14,8 +12,7 @@ class Event:
         self.event_date = datetime.strptime(event_date, "%Y-%m-%d").date()  
         self.event_organizer=event_organizer
         self.available = self.Status()
-        
-    
+         
     
     def create_event_datetime(self):
         """Создает объект datetime из event_date и event_time"""
@@ -49,9 +46,12 @@ class User:
 class Notification:
     def __init__(self, event:'Event'):
         self.event = event
+
+        
     def stat(self):
-        now_time = datetime.today() # Текущая дата и время
+        now_time = datetime.now() # Текущая дата и время
         return now_time < self.event.create_event_datetime() <= now_time + timedelta(minutes=60)
+    
     def __str__(self):
         """Вывод Уведомления"""
         if self.stat():
@@ -64,16 +64,28 @@ class EventBot:
         self.token = '8037825172:AAGi30A88smYPAnCVP2SOIORnRhVgn1xA0k'
         self.bot = telebot.TeleBot(self.token) 
         self.events = [
-            Event(1001, 'Учебная практика', '10:20', '2025-02-22', 'N.N.B.'),
+            Event(1001, 'Учебная практика', '21:50', '2025-02-27', 'N.N.B.'),
             Event(1002, 'Праздник 9 мая', '11:54', '2025-05-09', 'RF'),
             Event(1003, 'Праздник 24 февраля', '22:40', '2025-02-24', 'USSR'),
-            Event(1004, 'Не Масленница', '17:30', '2025-02-26', 'Rus,'),
+            Event(1004, 'Не Масленница', '21:30', '2025-02-27', 'Rus,'),
         ]
-   
+        
         @self.bot.message_handler(commands=['start', 'help'])
         def start_message(message):
             self.bot.send_message(message.chat.id,'Привет') 
-    
+            if self.events:
+                i = 0
+                for event in self.events:
+                    
+                    eventik = self.events[i]      
+                    self.notif_obj = Notification(eventik)
+                    notif_text = str(self.notif_obj)  # Получаем текст уведомления
+                    if notif_text:  # Отправляем, только если строка не пустая
+                        self.bot.send_message(message.chat.id, notif_text)
+                    i+=1
+            else:
+                self.bot.send_message(message.chat.id, 'Нет доступных событий')        
+
         @self.bot.message_handler(commands=['button'])
         def button_message(message):
             markup=types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -105,7 +117,6 @@ class EventBot:
             elif message.text == "Отзывы":
                 self.bot.send_message(message.chat.id, 'Здесь будут отзывы')
             
-   
     def run(self):
         """Метод для запуска бота"""
         print("Бот запущен...")
