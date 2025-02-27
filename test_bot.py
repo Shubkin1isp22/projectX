@@ -1,6 +1,6 @@
 import telebot
 from telebot import types
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, time
 
 
 class Event:
@@ -67,12 +67,20 @@ class EventBot:
             Event(1001, 'Учебная практика', '21:50', '2025-02-27', 'N.N.B.'),
             Event(1002, 'Праздник 9 мая', '11:54', '2025-05-09', 'RF'),
             Event(1003, 'Праздник 24 февраля', '22:40', '2025-02-24', 'USSR'),
-            Event(1004, 'Не Масленница', '21:30', '2025-02-27', 'Rus,'),
+            Event(1004, 'Не Масленница', '22:25', '2025-02-27', 'Rus,'),
         ]
         
         @self.bot.message_handler(commands=['start', 'help'])
         def start_message(message):
-            self.bot.send_message(message.chat.id,'Привет') 
+            now = datetime.now().hour # который час?
+            if 6 <= now < 12:
+                day_period = "Доброе утро"
+            elif 12 <= now < 23:
+                day_period = "Добрый день"
+            else:
+                day_period = "Доброй ночи"
+            self.bot.send_message(message.chat.id,{day_period}) 
+            
             if self.events:
                 i = 0
                 for event in self.events:
