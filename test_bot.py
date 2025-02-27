@@ -1,6 +1,6 @@
-import telebot
+import telebot, asyncio, time
 from telebot import types
-from datetime import datetime, date, timedelta, time
+from datetime import datetime, date, timedelta
 
 
 class Event:
@@ -64,10 +64,10 @@ class EventBot:
         self.token = '8037825172:AAGi30A88smYPAnCVP2SOIORnRhVgn1xA0k'
         self.bot = telebot.TeleBot(self.token) 
         self.events = [
-            Event(1001, 'Учебная практика', '21:50', '2025-02-27', 'N.N.B.'),
+            Event(1001, 'Учебная практика', '23:10', '2025-02-27', 'N.N.B.'),
             Event(1002, 'Праздник 9 мая', '11:54', '2025-05-09', 'RF'),
             Event(1003, 'Праздник 24 февраля', '22:40', '2025-02-24', 'USSR'),
-            Event(1004, 'Не Масленница', '22:25', '2025-02-27', 'Rus,'),
+            Event(1004, 'Не Масленница', '23:22', '2025-02-27', 'Rus,'),
         ]
         
         @self.bot.message_handler(commands=['start', 'help'])
@@ -80,19 +80,22 @@ class EventBot:
             else:
                 day_period = "Доброй ночи"
             self.bot.send_message(message.chat.id,{day_period}) 
-            
-            if self.events:
-                i = 0
-                for event in self.events:
-                    
-                    eventik = self.events[i]      
-                    self.notif_obj = Notification(eventik)
-                    notif_text = str(self.notif_obj)  # Получаем текст уведомления
-                    if notif_text:  # Отправляем, только если строка не пустая
-                        self.bot.send_message(message.chat.id, notif_text)
-                    i+=1
-            else:
-                self.bot.send_message(message.chat.id, 'Нет доступных событий')        
+            sent_notifications = set()
+            print(sent_notifications)
+            while True:
+                if self.events:
+                    i = 0
+                    for event in self.events:
+                        eventik = self.events[i]      
+                        self.notif_obj = Notification(eventik)
+                        notif_text = str(self.notif_obj)  # Получаем текст уведомления
+                        if notif_text and event.event_name not in sent_notifications:  # Отправляем, только если строка не пустая
+                            self.bot.send_message(message.chat.id, notif_text)
+                            sent_notifications.add(event.event_name)
+                        i+=1
+                    time.sleep(30)
+                else:
+                    self.bot.send_message(message.chat.id, 'Нет доступных событий')        
 
         @self.bot.message_handler(commands=['button'])
         def button_message(message):
@@ -133,7 +136,7 @@ class EventBot:
 
 
 
-    
+
 if __name__ == "__main__":
     Tele = EventBot()
     Tele.run()
