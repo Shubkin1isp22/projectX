@@ -23,7 +23,7 @@ class Event:
     def Status(self):
         today = datetime.today() #Текущая дата и время  
         return self.create_event_datetime() > today # Если Дата события не наступила, то оно доступно. Эта строка кидает False/True. Потом эту строку
-                                       # в аргумент берёт на 16 строке в статус(False/True)
+                                       # в аргумент берёт на 14 строке в статус(False/True)
 
     def __str__(self):
         """Вывод информации о мероприятии"""
@@ -32,14 +32,12 @@ class Event:
       
 
 class User:
-    def __init__(self, user_id, name, tg_name, password):
-        self.user_id = user_id
-        self.name = name
-        self.tg_name = tg_name
-        self.password = password
+    def __init__(self, message):
+        self.tg_name = message.from_user.id
+        self.name = message.from_user.username 
     
     def __str__(self):
-        return f"Вы: {self.name}, Ваш tg: {self.tg_name}, Ваш пароль: {self.password}"
+        return f"Вы: {self.name}, Ваш tg_id: {self.tg_name}"
 
 
 
@@ -101,9 +99,9 @@ class EventBot:
         def button_message(message):
             markup=types.ReplyKeyboardMarkup(resize_keyboard=True)
             item1=types.KeyboardButton("Мероприятия")
-            item2=types.KeyboardButton("Войти/Зарегистрироваться")
-            item3=types.KeyboardButton("Отзывы")
-            markup.add(item1, item2, item3)
+
+            item3=types.KeyboardButton("Профиль")
+            markup.add(item1,  item3)
             self.bot.send_message(message.chat.id,'Выберите что вам надо',reply_markup=markup)
 
         @self.bot.message_handler(content_types='text')
@@ -111,22 +109,17 @@ class EventBot:
             if message.text == "Мероприятия":
                 show_events = "\n".join(str(event)for event in self.events) if self.events else "Нет доступных мероприятий"
                 self.bot.send_message(message.chat.id, show_events)
-            elif message.text == "Войти/Зарегистрироваться":
-                markup=types.ReplyKeyboardMarkup(resize_keyboard=True)
-                item4=types.KeyboardButton("Войти")
-                item5=types.KeyboardButton("Зарегистрироваться")
-                item6=types.KeyboardButton("Назад")
-                markup.add(item4, item5, item6)
-                self.bot.send_message(message.chat.id,'Выберите что вам надо',reply_markup=markup)
+            
             elif message.text == "Назад":
                 markup=types.ReplyKeyboardMarkup(resize_keyboard=True)
                 item1=types.KeyboardButton("Мероприятия")
-                item2=types.KeyboardButton("Войти/Зарегистрироваться")
-                item3=types.KeyboardButton("Отзывы")
-                markup.add(item1, item2, item3)
+                
+                item3=types.KeyboardButton("Профиль")
+                markup.add(item1,  item3)
                 self.bot.send_message(message.chat.id,'Выберите что вам надо',reply_markup=markup)
-            elif message.text == "Отзывы":
-                self.bot.send_message(message.chat.id, 'Здесь будут отзывы')
+            elif message.text == "Профиль":
+                show_usr = str(User)
+                self.bot.send_message(message.chat.id, show_usr)
             
     def run(self):
         """Метод для запуска бота"""
