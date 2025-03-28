@@ -12,8 +12,8 @@ TOKEN = os.getenv("BOT_TOKEN")
 DB_CONFIG = {
     "host": "localhost",  
     "user": "root",  
-    "password": os.getenv("Root1!?_"),  
-    "database": "tgdb"  
+    "password": os.getenv("PASSWORD"),  
+    "database": "database_Name"  
 }
 
 
@@ -76,7 +76,7 @@ class Notification:
 class EventBot:
     """Класс телеграм-бота для управления мероприятиями"""
     def __init__(self):
-        self.token = '8037825172:AAGi30A88smYPAnCVP2SOIORnRhVgn1xA0k'
+        self.token = 'BOT_TOKEN'
         self.bot = telebot.TeleBot(self.token) 
         self.events = get_events_from_db()
         self.setup_handlers()
