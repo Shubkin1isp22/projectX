@@ -8,7 +8,7 @@ from database import get_events_from_db
 
 
 load_dotenv()
-TOKEN = os.getenv("BOT_TOKEN")
+
 DB_CONFIG = {
     "host": "localhost",  
     "user": "root",  
@@ -44,7 +44,7 @@ class Event:
     def __str__(self):
         """Вывод информации о мероприятии"""
         status= "Доступно" if self.available else "Закрыто"
-        return f"{self.event_name} | {self.event_time} | {self.event_organizer} | {self.event_datetime} ({status})"
+        return f"{self.event_name} | {self.event_time} | {self.event_organizer} | {self.event_datetime} ({status}) \n"
       
 
 class User:
@@ -72,6 +72,11 @@ class Notification:
         if self.stat():
             return f"Уведомление: {self.event.event_name} начнётся меньше чем через 1 час"
         return ""
+
+
+class AddEvent:
+    def __init__(self):
+        pass
 
 class EventBot:
     """Класс телеграм-бота для управления мероприятиями"""
@@ -104,7 +109,8 @@ class EventBot:
             markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
             item1 = types.KeyboardButton("Мероприятия")
             item2 = types.KeyboardButton("Профиль")
-            markup.add(item1, item2)
+            item3 = types.KeyboardButton("Создать мероприятие")
+            markup.add(item1, item2, item3)
             self.bot.send_message(message.chat.id, 'Выберите, что вам надо', reply_markup=markup)
 
         @self.bot.message_handler(func=lambda message: True)
@@ -117,6 +123,9 @@ class EventBot:
                 usr_obj = User(message)
                 show_user = str(usr_obj)
                 self.bot.send_message(message.chat.id, show_user)
+
+            elif message.text == "Создать мероприятие":
+                self.bot.send_message(message.chat.id, 'Введите данные о мероприятии: Его id(5 цифр), название, время начала, дату мероприятия')
 
     def send_notifications(self, chat_id):
         """Фоновая проверка уведомлений"""
