@@ -10,10 +10,11 @@ from database import get_events_from_db
 load_dotenv()
 
 DB_CONFIG = {
-    "host": "localhost",  
-    "user": "root",  
-    "password": os.getenv("Root1!?_"),  
-    "database": "tgdb"  
+    "host": "localhost", 
+    "port": "5432",  
+    "user": "postgres",  
+    "password": "Root1!?_",  
+    "database": "tg_db"  
 }
 
 
