@@ -3,7 +3,7 @@ from telebot import types
 from datetime import datetime, date, timedelta
 import os
 from dotenv import load_dotenv
-from database import get_events_from_db
+from database import get_events_from_db, add_event_to_db
 
 
 
@@ -76,8 +76,69 @@ class Notification:
 
 
 class AddEvent:
-    def __init__(self):
-        pass
+    def __init__(self, bot, update_events_callback):
+        self.bot = bot
+        self.user_data = {} #Хранит временные данные для каждого пользователя
+        self.update_events_callback = update_events_callback
+        
+
+    def setup_hadlers(self, message):
+        chat_id = message.chat.id
+        self.user_data[chat_id] = {}
+        self.bot.send_message(chat_id, "Введите id мероприятия:")
+        self.bot.register_next_step_handler(message, self.process_id)
+
+    def process_id(self, message):
+        chat_id = message.chat.id
+        self.user_data[chat_id]['id'] = message.text
+        self.bot.send_message(chat_id, "Введите название мероприятия:")
+        self.bot.register_next_step_handler(message, self.process_name)
+
+    def process_name(self, message):
+        chat_id = message.chat.id
+        self.user_data[chat_id]['name'] = message.text
+        self.bot.send_message(chat_id, "Введите время начала (HH:MM:SS):")
+        self.bot.register_next_step_handler(message, self.process_time)
+
+    def process_time(self, message):
+        chat_id = message.chat.id
+        self.user_data[chat_id]['time'] = message.text
+        self.bot.send_message(chat_id, "Введите дату и время мероприятия (ГГГГ-ММ-ДД) (HH:MM:SS):")
+        self.bot.register_next_step_handler(message, self.process_date)
+
+    def process_date(self, message):
+        chat_id = message.chat.id
+        self.user_data[chat_id]['datetime'] = message.text
+
+        try:
+            # Формируем данные и добавляем в БД
+            user = message.from_user.username or "anon"
+            from database import connect_db
+
+            conn = connect_db()
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO events VALUES (%s, %s, %s, %s, %s)",
+                (
+                    self.user_data[chat_id]['id'],
+                    self.user_data[chat_id]['name'],
+                    self.user_data[chat_id]['time'],
+                    user,
+                    self.user_data[chat_id]['datetime']
+                )
+            )
+            conn.commit()
+            conn.close()
+
+            self.bot.send_message(chat_id, "Мероприятие успешно создано!")
+            self.update_events_callback()
+        except ValueError:
+            self.bot.send_message(chat_id, "Ошибка в формате даты или времени. Попробуйте снова.")
+
+        self.user_data.pop(chat_id, None)
+
+
+
 
 class EventBot:
     """Класс телеграм-бота для управления мероприятиями"""
@@ -86,6 +147,7 @@ class EventBot:
         self.bot = telebot.TeleBot(self.token) 
         self.events = get_events_from_db()
         self.setup_handlers()
+        self.add_event_handler = AddEvent(self.bot, self.refresh_events)
 
     def setup_handlers(self):
         """Настройка команд и кнопок"""
@@ -126,7 +188,8 @@ class EventBot:
                 self.bot.send_message(message.chat.id, show_user)
 
             elif message.text == "Создать мероприятие":
-                self.bot.send_message(message.chat.id, 'Введите данные о мероприятии: Его id(5 цифр), название, время начала, дату мероприятия')
+                self.add_event_handler.setup_hadlers(message)
+
 
     def send_notifications(self, chat_id):
         """Фоновая проверка уведомлений"""
@@ -139,7 +202,11 @@ class EventBot:
                     self.bot.send_message(chat_id, notif_text)
                     sent_notifications.add(event.event_name)
             time.sleep(60)
-            
+
+    def refresh_events(self):
+        """Обновление списка событий из базы данных"""
+        self.events = get_events_from_db()
+
     def run(self):
         """Метод для запуска бота"""
         print("Бот запущен...")

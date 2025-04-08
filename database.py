@@ -37,7 +37,7 @@ def add_event_to_db():
     conn = connect_db() # Создаёт коннект с бд, призывая func connect_db.
     cursor = conn.cursor() # Создаёт курсор, что бы работать с sql. Записывает его в переменную.
 
-    cursor.execute("") # Через курсор идёт внедрение sql запроса
+    cursor.execute("INSERT events VALUES ('name_event', 'time', 'username', 'datetimee')") # Через курсор идёт внедрение sql запроса
 
     conn.commit()
     conn.close() # Закрытие соединения с бд
