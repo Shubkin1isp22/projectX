@@ -1,9 +1,9 @@
 import telebot, threading, time
-from telebot import types
+from telebot import types, TeleBot
 from datetime import datetime, date, timedelta
-import os
+from abc import ABC, abstractmethod
 from dotenv import load_dotenv
-from database import get_events_from_db, add_event_to_db
+from database import get_events_from_db
 
 
 
@@ -16,6 +16,39 @@ DB_CONFIG = {
     "password": "Root1!?_",  
     "database": "tg_db"  
 }
+
+class BaseCommand(ABC):
+    def __init__(self, bot : TeleBot):
+        self.bot = bot
+
+    @abstractmethod
+    def command(self):
+        pass
+
+class InfoCommand(BaseCommand):
+    def command(self):
+        @self.bot.message_handler(commands=['info'])
+        def info_command(message):
+            #print("Команда info получена")
+            chat_id = message.chat.id
+            info_str = """
+                            О нас
+
+                            EventsBot — это ваш персональный помощник в мире событий. Мы создали этого бота, чтобы объединить всех, кто хочет быть в курсе интересных мероприятий, делиться своими и никогда не пропускать ничего важного.
+
+                            С EventsBot вы можете:
+                                •	📅 Просматривать актуальный список мероприятий
+                                •	➕ Добавлять свои собственные события и делиться ими с другими
+                                •	🔔 Получать своевременные напоминания, чтобы быть в нужном месте в нужное время
+
+                            Наш бот создан с заботой о тех, кто ценит своё время и хочет быть частью активного сообщества. Неважно, организуете ли вы митап, лекцию, концерт или онлайн-встречу — EventsBot поможет вам найти свою аудиторию.
+
+                            Мы верим, что события объединяют людей. А мы помогаем этим встречам происходить.
+
+                            Присоединяйтесь — создавайте, узнавайте, приходите!
+                            """
+            self.bot.send_message(chat_id, info_str)
+
 
 
 
@@ -151,6 +184,11 @@ class EventBot:
 
     def setup_handlers(self):
         """Настройка команд и кнопок"""
+
+        info_cmd = InfoCommand(self.bot) #подключение класса InfoCommandb
+        info_cmd.command()
+
+
 
         @self.bot.message_handler(commands=['start', 'help'])
         def start_message(message):

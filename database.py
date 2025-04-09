@@ -32,13 +32,5 @@ def get_events_from_db():
     
     return events_list
 
-def add_event_to_db():
-    from test_bot import EventBot, AddEvent
-    conn = connect_db() # Создаёт коннект с бд, призывая func connect_db.
-    cursor = conn.cursor() # Создаёт курсор, что бы работать с sql. Записывает его в переменную.
 
-    cursor.execute("INSERT events VALUES ('name_event', 'time', 'username', 'datetimee')") # Через курсор идёт внедрение sql запроса
-
-    conn.commit()
-    conn.close() # Закрытие соединения с бд
 
