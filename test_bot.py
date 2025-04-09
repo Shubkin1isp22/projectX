@@ -54,6 +54,8 @@ class InfoCommand(BaseCommand):
 
 class Event:
     """Класс, представляющий мероприятие"""
+    
+
     def __init__(self, E_id, name_event, time, userName, datetimee,):
         self.event_id=E_id
         self.event_name=name_event
@@ -62,8 +64,6 @@ class Event:
         self.event_organizer=userName
         self.available = self.Status()
         
-         
-    
     def create_event_datetime(self):
         """Создает объект datetime из event_date и event_time"""
         event_time_obj = self.event_datetime.date()  # Преобразуем строку времени в объект time
@@ -79,7 +79,18 @@ class Event:
         """Вывод информации о мероприятии"""
         status= "Доступно" if self.available else "Закрыто"
         return f"{self.event_name} | {self.event_time} | {self.event_organizer} | {self.event_datetime} ({status}) \n"
-      
+    
+    
+    @staticmethod
+    def get_total_events():
+        """Получает количество мероприятий из базы данных"""
+        from database import connect_db  # Импорт внутри метода
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM events")
+        result = cursor.fetchone()
+        conn.close()
+        return result[0]
 
 class User:
     def __init__(self, message):
@@ -93,6 +104,8 @@ class User:
 
 
 class Notification:
+    sent_notifications = set()  # Статическое поле для хранения отправленных уведомлений
+
     def __init__(self, event:'Event'):
         self.event = event
 
@@ -104,7 +117,9 @@ class Notification:
     def __str__(self):
         """Вывод Уведомления"""
         if self.stat():
-            return f"Уведомление: {self.event.event_name} начнётся меньше чем через 1 час"
+            if self.event.event_name not in Notification.sent_notifications:
+                Notification.sent_notifications.add(self.event.event_name)
+                return f"Уведомление: {self.event.event_name} начнётся меньше чем через 1 час"
         return ""
 
 
@@ -213,6 +228,14 @@ class EventBot:
             item3 = types.KeyboardButton("Создать мероприятие")
             markup.add(item1, item2, item3)
             self.bot.send_message(message.chat.id, 'Выберите, что вам надо', reply_markup=markup)
+
+
+        @self.bot.message_handler(commands=['all'])
+        def all_message(message):
+            #print("Команда all получена")
+            total = Event.get_total_events()  # Вызов метода
+            self.bot.send_message(message.chat.id, f"Всего мероприятий: {total}")
+
 
         @self.bot.message_handler(func=lambda message: True)
         def message_reply(message):
