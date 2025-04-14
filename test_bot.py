@@ -1,6 +1,6 @@
 import telebot, threading, time
 from telebot import types, TeleBot
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, time
 from abc import ABC, abstractmethod
 from dotenv import load_dotenv
 from database import get_events_from_db
@@ -48,8 +48,24 @@ class InfoCommand(BaseCommand):
                             Присоединяйтесь — создавайте, узнавайте, приходите!
                             """
             self.bot.send_message(chat_id, info_str)
-
-
+class InFCommand(InfoCommand):
+    def command(self):
+        @self.bot.message_handler(commands=['mylog'])
+        def log_command(message):
+            #print("Команда mylog получена")
+            chat_id = message.chat.id
+            log_str = """
+                            Вывод
+                            логирования
+                            о
+                            пользователе
+                            """
+            self.bot.send_message(chat_id, log_str)
+    def first_or_second(self, use_base): #крч, если в use_base подать true, то будет выводится о нас, а если false, то логирование.
+        if use_base:
+            super().command()
+        else:
+            self.command()
 
 
 class Event:
@@ -122,7 +138,15 @@ class Notification:
                 return f"Уведомление: {self.event.event_name} начнётся меньше чем через 1 час"
         return ""
 
+class My_base_error(Exception):
+    pass
 
+class Id_is_NaN(My_base_error):
+    pass
+class Time_is_time(My_base_error):
+    pass
+class Datetime_is_datetime(My_base_error):
+    pass
 class AddEvent:
     def __init__(self, bot, update_events_callback):
         self.bot = bot
@@ -138,9 +162,15 @@ class AddEvent:
 
     def process_id(self, message):
         chat_id = message.chat.id
-        self.user_data[chat_id]['id'] = message.text
-        self.bot.send_message(chat_id, "Введите название мероприятия:")
-        self.bot.register_next_step_handler(message, self.process_name)
+        id_is_nan = message.text
+        try:
+            if not id_is_nan.isdigit():
+                raise Id_is_NaN("Id должен быть цифрой или числом!!!")
+            self.user_data[chat_id]['id'] = message.text
+            self.bot.send_message(chat_id, "Введите название мероприятия:")
+            self.bot.register_next_step_handler(message, self.process_name)
+        except Id_is_NaN as e:
+            self.bot.send_message(chat_id, f"Ошибка: {e}")
 
     def process_name(self, message):
         chat_id = message.chat.id
@@ -150,14 +180,41 @@ class AddEvent:
 
     def process_time(self, message):
         chat_id = message.chat.id
-        self.user_data[chat_id]['time'] = message.text
-        self.bot.send_message(chat_id, "Введите дату и время мероприятия (ГГГГ-ММ-ДД) (HH:MM:SS):")
-        self.bot.register_next_step_handler(message, self.process_date)
+        pr_time_is_time = message.text.strip()
+
+        try:
+            # Преобразуем строку во время
+            parsed_time = datetime.strptime(pr_time_is_time, "%H:%M:%S").time()
+
+            # Сохраняем, если всё ок
+            self.user_data[chat_id]['time'] = parsed_time
+            self.bot.send_message(chat_id, "Введите дату и время мероприятия (ГГГГ-ММ-ДД) (HH:MM:SS):")
+            self.bot.register_next_step_handler(message, self.process_date)
+
+        except ValueError:
+            # Если строка не соответствует формату времени
+            self.bot.send_message(chat_id, "Ошибка: Время нужно ввести в формате HH:MM:SS, например: 23:12:00")
+
 
     def process_date(self, message):
         chat_id = message.chat.id
-        self.user_data[chat_id]['datetime'] = message.text
+        date_is_datetime = message.text.strip()
 
+        try:
+            # Пытаемся распарсить строку в datetime
+            parsed_datetime = datetime.strptime(date_is_datetime, "%Y-%m-%d %H:%M:%S")
+            # Сохраняем результат
+            self.user_data[chat_id]['datetime'] = parsed_datetime
+
+        except ValueError:  # Ловим стандартную ошибку ValueError
+            self.bot.send_message(
+                chat_id,
+                "Ошибка: Дату и время нужно ввести в формате 'ГГГГ-ММ-ДД ЧЧ:ММ:СС', например: 2025-04-14 22:14:00"
+            )
+        finally:
+            self.bot.send_message(chat_id, "Обработка завершена. Благодарим за участие!")
+            # заготовка под логирование
+            print(f"Обработка завершена для пользователя {chat_id}. Введенная дата: {date_is_datetime}")
         try:
             # Формируем данные и добавляем в БД
             user = message.from_user.username or "anon"
@@ -182,6 +239,10 @@ class AddEvent:
             self.update_events_callback()
         except ValueError:
             self.bot.send_message(chat_id, "Ошибка в формате даты или времени. Попробуйте снова.")
+        except Exception as e:
+            self.bot.send_message(chat_id, f"Ошибка при сохранении: {e}")
+        
+
 
         self.user_data.pop(chat_id, None)
 
@@ -202,7 +263,8 @@ class EventBot:
 
         info_cmd = InfoCommand(self.bot) #подключение класса InfoCommandb
         info_cmd.command()
-
+        log_cmd = InFCommand(self.bot)
+        log_cmd.command()
 
 
         @self.bot.message_handler(commands=['start', 'help'])
