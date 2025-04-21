@@ -1,11 +1,16 @@
-import telebot, threading, time
+import telebot, threading, time, logging
 from telebot import types, TeleBot
-from datetime import datetime, date, timedelta, time
+from datetime import datetime, date, timedelta
+from datetime import time as dt_time
 from abc import ABC, abstractmethod
 from dotenv import load_dotenv
 from database import get_events_from_db
 
-
+logging.basicConfig(
+    filename='bot_logs.log',  
+    level=logging.INFO,  
+    format='%(asctime)s - %(levelname)s - %(message)s'  # Формат вывода логов
+)
 
 load_dotenv()
 
@@ -21,7 +26,7 @@ class BaseCommand(ABC):
     def __init__(self, bot : TeleBot):
         self.bot = bot
 
-    @abstractmethod
+    
     def command(self):
         pass
 
@@ -48,10 +53,11 @@ class InfoCommand(BaseCommand):
                             Присоединяйтесь — создавайте, узнавайте, приходите!
                             """
             self.bot.send_message(chat_id, info_str)
-class InFCommand(InfoCommand):
+            logging.info(f"Информация о боте отправлена {message.from_user.username}, chat_id: {message.chat.id}")
+class MyLogCommand(BaseCommand):
     def command(self):
         @self.bot.message_handler(commands=['mylog'])
-        def log_command(message):
+        def info_command(message):
             #print("Команда mylog получена")
             chat_id = message.chat.id
             log_str = """
@@ -61,11 +67,11 @@ class InFCommand(InfoCommand):
                             пользователе
                             """
             self.bot.send_message(chat_id, log_str)
-    def first_or_second(self, use_base): #крч, если в use_base подать true, то будет выводится о нас, а если false, то логирование.
-        if use_base:
-            super().command()
-        else:
-            self.command()
+    #def first_or_second(self, use_base): #крч, если в use_base подать true, то будет выводится о нас, а если false, то логирование.
+        #if use_base:
+            #super().command()
+        #else:
+            #self.command()
 
 
 class Event:
@@ -95,7 +101,9 @@ class Event:
         """Вывод информации о мероприятии"""
         status= "Доступно" if self.available else "Закрыто"
         return f"{self.event_name} | {self.event_time} | {self.event_organizer} | {self.event_datetime} ({status}) \n"
-    
+    def __repr__(self):
+        # разрабам
+        return f"Event({repr(self.event_name)}, {repr(self.event_time)}, {repr(self.event_organizer)}, {repr(self.event_datetime)})"
     
     @staticmethod
     def get_total_events():
@@ -138,6 +146,7 @@ class Notification:
                 return f"Уведомление: {self.event.event_name} начнётся меньше чем через 1 час"
         return ""
 
+
 class My_base_error(Exception):
     pass
 
@@ -171,6 +180,7 @@ class AddEvent:
             self.bot.register_next_step_handler(message, self.process_name)
         except Id_is_NaN as e:
             self.bot.send_message(chat_id, f"Ошибка: {e}")
+            logging.error(f"Ошибка при обработке id от пользователя {message.from_user.username}, chat_id: {message.chat.id}. Ошибка: {e}")
 
     def process_name(self, message):
         chat_id = message.chat.id
@@ -194,6 +204,8 @@ class AddEvent:
         except ValueError:
             # Если строка не соответствует формату времени
             self.bot.send_message(chat_id, "Ошибка: Время нужно ввести в формате HH:MM:SS, например: 23:12:00")
+            logging.error(f"Ошибка при вводе времени от пользователя {message.from_user.username}, chat_id: {message.chat.id}. Введенное время: {pr_time_is_time}")
+      
 
 
     def process_date(self, message):
@@ -211,10 +223,10 @@ class AddEvent:
                 chat_id,
                 "Ошибка: Дату и время нужно ввести в формате 'ГГГГ-ММ-ДД ЧЧ:ММ:СС', например: 2025-04-14 22:14:00"
             )
+            logging.error(f"Ошибка при вводе даты от пользователя {message.from_user.username}, chat_id: {message.chat.id}. Введенная дата: {date_is_datetime}")
         finally:
             self.bot.send_message(chat_id, "Обработка завершена. Благодарим за участие!")
-            # заготовка под логирование
-            print(f"Обработка завершена для пользователя {chat_id}. Введенная дата: {date_is_datetime}")
+            
         try:
             # Формируем данные и добавляем в БД
             user = message.from_user.username or "anon"
@@ -237,10 +249,12 @@ class AddEvent:
 
             self.bot.send_message(chat_id, "Мероприятие успешно создано!")
             self.update_events_callback()
+            logging.info(f"Пользователем {chat_id} было создано мероприятие {self.user_data[chat_id]['name']}")
         except ValueError:
             self.bot.send_message(chat_id, "Ошибка в формате даты или времени. Попробуйте снова.")
         except Exception as e:
             self.bot.send_message(chat_id, f"Ошибка при сохранении: {e}")
+            logging.error(f"Ошибка при добавлении мероприятия для пользователя {chat_id}: {e}")
         
 
 
@@ -257,15 +271,16 @@ class EventBot:
         self.events = get_events_from_db()
         self.setup_handlers()
         self.add_event_handler = AddEvent(self.bot, self.refresh_events)
+        self.about_us = InfoCommand(self.bot)
 
     def setup_handlers(self):
         """Настройка команд и кнопок"""
-
-        info_cmd = InfoCommand(self.bot) #подключение класса InfoCommandb
-        info_cmd.command()
-        log_cmd = InFCommand(self.bot)
-        log_cmd.command()
-
+        commands = [
+            InfoCommand(self.bot),
+            MyLogCommand(self.bot)
+        ]
+        for cmd in commands:
+            cmd.command()
 
         @self.bot.message_handler(commands=['start', 'help'])
         def start_message(message):
@@ -288,7 +303,8 @@ class EventBot:
             item1 = types.KeyboardButton("Мероприятия")
             item2 = types.KeyboardButton("Профиль")
             item3 = types.KeyboardButton("Создать мероприятие")
-            markup.add(item1, item2, item3)
+            item4 = types.KeyboardButton("Организаторы")
+            markup.add(item1, item2, item3, item4)
             self.bot.send_message(message.chat.id, 'Выберите, что вам надо', reply_markup=markup)
 
 
@@ -297,6 +313,7 @@ class EventBot:
             #print("Команда all получена")
             total = Event.get_total_events()  # Вызов метода
             self.bot.send_message(message.chat.id, f"Всего мероприятий: {total}")
+            logging.info(f"Информация о количестве мероприятий отправлена пользователю {message.from_user.username}")
 
 
         @self.bot.message_handler(func=lambda message: True)
@@ -314,6 +331,14 @@ class EventBot:
                 self.add_event_handler.setup_hadlers(message)
 
 
+            elif message.text == "Организаторы":
+                organizers = list(set(map(lambda e: e.event_organizer, self.events)))
+                organizers_info = "\n".join(organizers)
+                self.bot.send_message(message.chat.id, f"Организаторы мероприятий:\n{organizers_info}")
+                            
+
+
+
     def send_notifications(self, chat_id):
         """Фоновая проверка уведомлений"""
         sent_notifications = set()
@@ -324,6 +349,7 @@ class EventBot:
                 if notif_text and event.event_name not in sent_notifications:
                     self.bot.send_message(chat_id, notif_text)
                     sent_notifications.add(event.event_name)
+                    logging.info(f"Уведомление отправлено пользователю {chat_id} о событии {event.event_name}")
             time.sleep(60)
 
     def refresh_events(self):

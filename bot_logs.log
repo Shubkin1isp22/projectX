@@ -1,0 +1,20 @@
+2025-04-20 18:33:24,688 - INFO - Информация о боте отправлена green_ruff, chat_id: 1230795197
+2025-04-20 18:33:36,945 - ERROR - Infinity polling: polling exited
+2025-04-20 18:33:36,946 - ERROR - Break infinity polling
+2025-04-20 18:41:05,747 - INFO - Уаедомление отправлено пользователю 1230795197 о событии Event21
+2025-04-20 18:41:22,774 - ERROR - Infinity polling: polling exited
+2025-04-20 18:41:22,775 - ERROR - Break infinity polling
+2025-04-20 18:52:57,430 - ERROR - Ошибка при обработке id от пользователя green_ruff, chat_id: 1230795197. Ошибка: Id должен быть цифрой или числом!!!2025-04-20 18:56:25,014 - ERROR - Infinity polling: polling exited
+2025-04-20 18:56:25,014 - ERROR - Break infinity polling
+2025-04-20 18:56:54,377 - ERROR - Ошибка при вводе времени от пользователя green_ruff, chat_id: 1230795197. Введенное время: ываы
+2025-04-20 18:57:31,356 - ERROR - Ошибка при вводе даты от пользователя green_ruff, chat_id: 1230795197. Введенная дата: аццуауц
+2025-04-20 18:57:31,698 - ERROR - Ошибка при добавлении мероприятия для пользователя 1230795197: 'datetime'
+2025-04-20 19:01:45,525 - ERROR - Ошибка при добавлении мероприятия для пользователя 1230795197: duplicate key value violates unique constraint "events_pkey"
+DETAIL:  Key (e_id)=(21) already exists.
+
+2025-04-20 19:02:45,393 - INFO - Пользователем 1230795197 было создано мероприятие Event22
+2025-04-20 19:02:54,318 - ERROR - Infinity polling: polling exited
+2025-04-20 19:02:54,319 - ERROR - Break infinity polling
+2025-04-20 19:04:54,229 - INFO - Информация о количестве мероприятий отправлена пользователю green_ruff
+2025-04-20 19:05:01,685 - ERROR - Infinity polling: polling exited
+2025-04-20 19:05:01,685 - ERROR - Break infinity polling
