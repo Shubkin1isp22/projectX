@@ -4,7 +4,7 @@ from datetime import datetime, date, timedelta
 from datetime import time as dt_time
 from abc import ABC, abstractmethod
 from dotenv import load_dotenv
-from database import get_events_from_db
+from database import get_events_from_db, connect_db
 
 logging.basicConfig(
     filename='bot_logs.log',  
@@ -115,6 +115,43 @@ class Event:
         result = cursor.fetchone()
         conn.close()
         return result[0]
+
+class EventEditor:
+    @staticmethod
+    def delete_event(event_id):
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM events WHERE e_id = %s", (event_id,))
+        conn.commit()
+        conn.close()
+
+    @staticmethod
+    def update_event(event_id, new_name=None, new_time=None, new_datetime=None):
+        conn = connect_db()
+        cursor = conn.cursor()
+
+        update_fields = []
+        params = []
+
+        if new_name:
+            update_fields.append("name_event = %s")
+            params.append(new_name)
+        if new_time:
+            update_fields.append("time = %s")
+            params.append(new_time)
+        if new_datetime:
+            update_fields.append("datetimee = %s")
+            params.append(new_datetime)
+
+        if update_fields:
+            params.append(event_id)
+            query = f"UPDATE events SET {', '.join(update_fields)} WHERE e_id = %s"
+            cursor.execute(query, tuple(params))
+            conn.commit()
+        
+        conn.close()
+
+
 
 class User:
     def __init__(self, message):
@@ -272,6 +309,7 @@ class EventBot:
         self.setup_handlers()
         self.add_event_handler = AddEvent(self.bot, self.refresh_events)
         self.about_us = InfoCommand(self.bot)
+        self.edit_data = {}
 
     def setup_handlers(self):
         """Настройка команд и кнопок"""
@@ -314,7 +352,18 @@ class EventBot:
             total = Event.get_total_events()  # Вызов метода
             self.bot.send_message(message.chat.id, f"Всего мероприятий: {total}")
             logging.info(f"Информация о количестве мероприятий отправлена пользователю {message.from_user.username}")
+        
+        @self.bot.message_handler(commands=['delete'])
+        def delete_handler(message):
+            chat_id = message.chat.id
+            self.bot.send_message(chat_id, "Введите ID мероприятия, которое хотите удалить:")
+            self.bot.register_next_step_handler(message, self.process_deletion)
 
+        @self.bot.message_handler(commands=['edit'])
+        def edit_handler(message):
+            chat_id = message.chat.id
+            self.bot.send_message(chat_id, "Введите ID мероприятия для редактирования:")
+            self.bot.register_next_step_handler(message, self.get_edit_id)
 
         @self.bot.message_handler(func=lambda message: True)
         def message_reply(message):
@@ -351,6 +400,55 @@ class EventBot:
                     sent_notifications.add(event.event_name)
                     logging.info(f"Уведомление отправлено пользователю {chat_id} о событии {event.event_name}")
             time.sleep(60)
+    def process_deletion(self, message):
+        event_id = message.text.strip()
+        try:
+            EventEditor.delete_event(event_id)
+            self.bot.send_message(message.chat.id, f"Мероприятие с ID {event_id} удалено.")
+            logging.info(f"Удалено мероприятие {event_id} пользователем {message.from_user.username}")
+            self.refresh_events()
+        except Exception as e:
+            self.bot.send_message(message.chat.id, f"Ошибка при удалении: {e}")
+
+    def get_edit_id(self, message):
+        self.edit_data['id'] = message.text.strip()
+        self.bot.send_message(message.chat.id, "Введите новое название мероприятия (или '-' если без изменений):")
+        self.bot.register_next_step_handler(message, self.get_new_name)
+
+    def get_new_name(self, message):
+        name = message.text.strip()
+        self.edit_data['name'] = None if name == "-" else name
+        self.bot.send_message(message.chat.id, "Введите новое время (HH:MM:SS) (или '-' если без изменений):")
+        self.bot.register_next_step_handler(message, self.get_new_time)
+
+    def get_new_time(self, message):
+        try:
+            time_text = message.text.strip()
+            self.edit_data['time'] = None if time_text == "-" else datetime.strptime(time_text, "%H:%M:%S").time()
+            self.bot.send_message(message.chat.id, "Введите новую дату и время (ГГГГ-ММ-ДД ЧЧ:ММ:СС) (или '-' если без изменений):")
+            self.bot.register_next_step_handler(message, self.finish_edit)
+        except ValueError:
+            self.bot.send_message(message.chat.id, "Ошибка: Время должно быть в формате HH:MM:SS. Попробуйте снова.")
+
+    def finish_edit(self, message):
+        try:
+            datetime_text = message.text.strip()
+            new_dt = None if datetime_text == "-" else datetime.strptime(datetime_text, "%Y-%m-%d %H:%M:%S")
+
+            EventEditor.update_event(
+                self.edit_data['id'],
+                new_name=self.edit_data['name'],
+                new_time=self.edit_data['time'],
+                new_datetime=new_dt
+            )
+            self.bot.send_message(message.chat.id, "Мероприятие успешно обновлено.")
+            logging.info(f"Мероприятие {self.edit_data['id']} обновлено пользователем {message.from_user.username}")
+            self.refresh_events()
+        except Exception as e:
+            self.bot.send_message(message.chat.id, f"Ошибка при редактировании: {e}")
+
+    
+
 
     def refresh_events(self):
         """Обновление списка событий из базы данных"""
